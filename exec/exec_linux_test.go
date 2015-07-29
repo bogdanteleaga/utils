@@ -6,7 +6,7 @@ package exec_test
 import (
 	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
-	gc "launchpad.net/gocheck"
+	gc "gopkg.in/check.v1"
 
 	"github.com/juju/utils/exec"
 )
@@ -51,20 +51,35 @@ func (*execSuite) TestRunCommands(c *gc.C) {
 			commands:    "echo $OMG_IT_WORKS",
 			environment: []string{"OMG_IT_WORKS=like magic"},
 			stdout:      "like magic\n",
+		}, {
+			message:  "multiple commands",
+			commands: "cat\necho 123",
+			stdout:   "123\n",
 		},
 	} {
 		c.Logf("%v: %s", i, test.message)
 
-		result, err := exec.RunCommands(
-			exec.RunParams{
-				Commands:    test.commands,
-				WorkingDir:  test.workingDir,
-				Environment: test.environment,
-			})
+		params := exec.RunParams{
+			Commands:    test.commands,
+			WorkingDir:  test.workingDir,
+			Environment: test.environment,
+		}
+
+		result, err := exec.RunCommands(params)
 		c.Assert(err, gc.IsNil)
 		c.Assert(string(result.Stdout), gc.Equals, test.stdout)
 		c.Assert(string(result.Stderr), gc.Equals, test.stderr)
 		c.Assert(result.Code, gc.Equals, test.code)
+
+		err = params.Run()
+		c.Assert(err, gc.IsNil)
+		c.Assert(params.Process(), gc.Not(gc.IsNil))
+		result, err = params.Wait()
+		c.Assert(err, gc.IsNil)
+		c.Assert(string(result.Stdout), gc.Equals, test.stdout)
+		c.Assert(string(result.Stderr), gc.Equals, test.stderr)
+		c.Assert(result.Code, gc.Equals, test.code)
+
 	}
 }
 

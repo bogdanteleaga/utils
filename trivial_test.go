@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/juju/testing"
-	gc "launchpad.net/gocheck"
+	gc "gopkg.in/check.v1"
 
 	"github.com/juju/utils"
 )
@@ -44,6 +44,41 @@ func (*utilsSuite) TestCompression(c *gc.C) {
 	data1, err = utils.Gunzip(compressedData)
 	c.Assert(err, gc.IsNil)
 	c.Assert(data1, gc.DeepEquals, data)
+}
+
+func checkQuoting(c *gc.C, shQuote func(string) string, tests map[string]string) {
+	for str, expected := range tests {
+		c.Logf("- checking %q -", str)
+		quoted := shQuote(str)
+
+		c.Check(quoted, gc.Equals, expected)
+	}
+}
+
+func (*utilsSuite) TestWinCmdQuote(c *gc.C) {
+	args := map[string]string{
+		"":                 `^"^"`,
+		"a":                `^"a^"`,
+		"'a'":              `^"'a'^"`,
+		`"a`:               `^"\^"a^"`,
+		`a"`:               `^"a\^"^"`,
+		`"a"`:              `^"\^"a\^"^"`,
+		"abc > xyz 2>&1 &": `^"abc ^> xyz 2^>^&1 ^&^"`,
+	}
+	checkQuoting(c, utils.WinCmdQuote, args)
+}
+
+func (*utilsSuite) TestWinPSQuote(c *gc.C) {
+	args := map[string]string{
+		"":                 "''",
+		"a":                `'a'`,
+		`"a"`:              `'"a"'`,
+		"'a":               `'"a'`,
+		"a'":               `'a"'`,
+		"'a'":              `'"a"'`,
+		"abc > xyz 2>&1 &": "'abc > xyz 2>&1 &'",
+	}
+	checkQuoting(c, utils.WinPSQuote, args)
 }
 
 func (*utilsSuite) TestCommandString(c *gc.C) {

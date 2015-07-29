@@ -5,11 +5,12 @@ package exec_test
 
 import (
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
-	gc "launchpad.net/gocheck"
+	gc "gopkg.in/check.v1"
 
 	"github.com/juju/utils/exec"
 )
@@ -91,16 +92,27 @@ func (*execSuite) TestRunCommands(c *gc.C) {
 	} {
 		c.Logf("%v: %s", i, test.message)
 
-		result, err := exec.RunCommands(
-			exec.RunParams{
-				Commands:    test.commands,
-				WorkingDir:  test.workingDir,
-				Environment: test.environment,
-			})
+		params := exec.RunParams{
+			Commands:    test.commands,
+			WorkingDir:  test.workingDir,
+			Environment: test.environment,
+		}
+
+		result, err := exec.RunCommands(params)
 		c.Assert(err, gc.IsNil)
 		c.Assert(string(result.Stdout), gc.Equals, test.stdout)
 		c.Assert(string(result.Stderr), jc.Contains, test.stderr)
 		c.Assert(result.Code, gc.Equals, test.code)
+
+		err = params.Run()
+		c.Assert(err, gc.IsNil)
+		c.Assert(params.Process(), gc.Not(gc.IsNil))
+		result, err = params.Wait()
+		c.Assert(err, gc.IsNil)
+		c.Assert(string(result.Stdout), gc.Equals, test.stdout)
+		c.Assert(string(result.Stderr), jc.Contains, test.stderr)
+		c.Assert(result.Code, gc.Equals, test.code)
+
 	}
 }
 
@@ -112,7 +124,8 @@ func (*execSuite) TestExecUnknownCommand(c *gc.C) {
 	)
 	c.Assert(err, gc.IsNil)
 	c.Assert(result.Stdout, gc.HasLen, 0)
-	c.Assert(string(result.Stderr), jc.Contains, "is not recognized as the name of a cmdlet")
+	stderr := strings.Replace(string(result.Stderr), "\r\n", "", -1)
+	c.Assert(stderr, jc.Contains, "is not recognized as the name of a cmdlet")
 	// 1 is returned by RunCommands when powershell commands throw exceptions
 	c.Assert(result.Code, gc.Equals, 1)
 }

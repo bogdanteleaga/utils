@@ -6,7 +6,7 @@ package utils_test
 import (
 	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
-	gc "launchpad.net/gocheck"
+	gc "gopkg.in/check.v1"
 
 	"github.com/juju/utils"
 )
@@ -36,7 +36,39 @@ func (*uuidSuite) TestUUID(c *gc.C) {
 }
 
 func (*uuidSuite) TestIsValidUUIDFailsWhenNotValid(c *gc.C) {
-	c.Assert(utils.IsValidUUIDString("blah"), gc.Equals, false)
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{
+			utils.UUID{}.String(),
+			true,
+		},
+		{
+			"",
+			false,
+		},
+		{
+			"blah",
+			false,
+		},
+		{
+			"blah-9f484882-2f18-4fd2-967d-db9663db7bea",
+			false,
+		},
+		{
+			"9f484882-2f18-4fd2-967d-db9663db7bea-blah",
+			false,
+		},
+		{
+			"9f484882-2f18-4fd2-967d-db9663db7bea",
+			true,
+		},
+	}
+	for i, t := range tests {
+		c.Logf("Running test %d", i)
+		c.Check(utils.IsValidUUIDString(t.input), gc.Equals, t.expected)
+	}
 }
 
 func (*uuidSuite) TestUUIDFromString(c *gc.C) {
